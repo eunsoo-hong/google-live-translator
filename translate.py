@@ -97,7 +97,8 @@ def is_rate_limit(exc: Exception) -> bool:
 
 
 # ----- 한 파일 번역 (1 세션) ----------------------------------------------
-async def translate_one(client, types, pcm: bytes, target_lang: str, pace: bool) -> str:
+async def translate_one(client, types, pcm: bytes, target_lang: str, pace: bool,
+                        verbose: bool = False) -> str:
     """PCM 오디오를 스트리밍하고 출력 전사 텍스트를 이어붙여 반환."""
     config = types.LiveConnectConfig(
         response_modalities=["AUDIO"],                       # 모델은 음성을 내지만 우리는 버림
@@ -111,6 +112,7 @@ async def translate_one(client, types, pcm: bytes, target_lang: str, pace: bool)
     transcript_parts: list[str] = []
 
     async with client.aio.live.connect(model=MODEL, config=config) as session:
+        t0 = time.monotonic()  # 세션 시작 기준 — verbose 타임스탬프용
 
         async def sender():
             for i in range(0, len(pcm), CHUNK_BYTES):
@@ -126,6 +128,10 @@ async def translate_one(client, types, pcm: bytes, target_lang: str, pace: bool)
                 await session.send_realtime_input(audio_stream_end=True)
             except TypeError:
                 pass
+            if verbose:
+                dur = len(pcm) / (INPUT_RATE * 2)
+                print(f"      [+{time.monotonic()-t0:5.1f}s] ⇪ 오디오 {dur:.0f}s 전송 완료 "
+                      f"(이 시점 이전에 도착한 전사는 = 실시간 스트리밍 증거)", flush=True)
 
         send_task = asyncio.create_task(sender())
 
@@ -162,6 +168,9 @@ async def translate_one(client, types, pcm: bytes, target_lang: str, pace: bool)
                 if ot and getattr(ot, "text", None):
                     transcript_parts.append(ot.text)
                     last = time.monotonic()
+                    if verbose:
+                        print(f"      [+{time.monotonic()-t0:5.1f}s] ⇩ 전사 수신: "
+                              f"{ot.text!r}", flush=True)
                 # 모델 음성(model_turn / inline_data)은 의도적으로 무시한다.
         finally:
             send_task.cancel()
@@ -173,11 +182,11 @@ async def translate_one(client, types, pcm: bytes, target_lang: str, pace: bool)
     return "".join(transcript_parts).strip()
 
 
-async def translate_with_retry(client, types, pcm, target, pace, max_retries):
+async def translate_with_retry(client, types, pcm, target, pace, max_retries, verbose=False):
     delay = 5.0
     for attempt in range(1, max_retries + 1):
         try:
-            return await translate_one(client, types, pcm, target, pace)
+            return await translate_one(client, types, pcm, target, pace, verbose)
         except Exception as e:
             if is_rate_limit(e) and attempt < max_retries:
                 print(f"      · 429/쿼터 — {delay:.0f}s 후 재시도 ({attempt}/{max_retries})")
@@ -243,7 +252,7 @@ async def run(args):
             secs = len(pcm) / (INPUT_RATE * 2)
             print(f"      · 변환 완료: {secs:.1f}s 오디오, {len(pcm)//1024}KB PCM, 스트리밍 시작…")
             text = await translate_with_retry(
-                client, types, pcm, target, not args.fast, args.max_retries
+                client, types, pcm, target, not args.fast, args.max_retries, args.verbose
             )
             if not text:
                 raise RuntimeError("전사 텍스트가 비어 있음 (응답 없음)")
@@ -276,6 +285,8 @@ def parse_args():
     p.add_argument("--max-retries", type=int, default=5, help="429 재시도 횟수, 기본 5")
     p.add_argument("--fast", action="store_true",
                    help="실시간 페이싱 없이 최대한 빨리 전송 (디버그/테스트용)")
+    p.add_argument("--verbose", action="store_true",
+                   help="청크 송신/전사 수신을 타임스탬프와 함께 출력 (스트리밍 검증용)")
     return p.parse_args()
 
 

@@ -33,3 +33,4 @@ venv/
 
 # batch run log
 batch.log
+batch-*.log
