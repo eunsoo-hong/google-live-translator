@@ -47,7 +47,7 @@ MODEL = "gemini-3.5-live-translate-preview"
 INPUT_RATE = 16000          # Live Translate 입력: 16kHz mono PCM, little-endian
 CHUNK_MS = 100              # 권장 청크 길이 (100ms)
 CHUNK_BYTES = INPUT_RATE * 2 * CHUNK_MS // 1000   # 16-bit -> 2 bytes/sample
-IDLE_TIMEOUT = 20          # 오디오 전송 종료 후, 전사가 이만큼 잠잠하면 완료로 간주
+IDLE_TIMEOUT = 12          # 오디오 전송 종료 후, 전사가 이만큼 잠잠하면 완료로 간주
 OUTPUT_DIR = Path("outputs")
 
 
@@ -129,20 +129,31 @@ async def translate_one(client, types, pcm: bytes, target_lang: str, pace: bool)
 
         send_task = asyncio.create_task(sender())
 
-        # receive() 는 단일 async 스트림 — 루프마다 새로 만들지 말고 한 번만 연다.
-        stream = session.receive()
+        # receive() 제너레이터는 turn 경계에서 끝난다. 캐싱하지 말고 메시지마다 새로
+        # 호출해 다음 한 건을 꺼낸다(같은 내부 큐에서 순서대로 나옴). 오디오 전송이
+        # 끝난 뒤 IDLE_TIMEOUT 동안 새 전사가 없으면 완료로 간주한다.
         last = time.monotonic()
+        errors = 0
         try:
             while True:
-                # 전송이 끝났고 일정 시간 새 전사가 없으면 종료
                 if send_task.done() and (time.monotonic() - last) > IDLE_TIMEOUT:
                     break
                 try:
-                    response = await asyncio.wait_for(stream.__anext__(), timeout=2.0)
+                    response = await asyncio.wait_for(
+                        session.receive().__anext__(), timeout=2.0
+                    )
+                    errors = 0
                 except asyncio.TimeoutError:
                     continue
-                except StopAsyncIteration:
-                    break
+                except (StopAsyncIteration, RuntimeError, Exception) as e:
+                    # 연결 종료(go_away 등). 전송이 끝났으면 정상 종료로 본다.
+                    if send_task.done():
+                        break
+                    errors += 1
+                    if errors > 10:
+                        raise RuntimeError(f"수신 스트림 반복 오류: {e}")
+                    await asyncio.sleep(0.2)
+                    continue
 
                 sc = getattr(response, "server_content", None)
                 if not sc:
@@ -152,9 +163,6 @@ async def translate_one(client, types, pcm: bytes, target_lang: str, pace: bool)
                     transcript_parts.append(ot.text)
                     last = time.monotonic()
                 # 모델 음성(model_turn / inline_data)은 의도적으로 무시한다.
-                if getattr(sc, "turn_complete", False) and send_task.done():
-                    # 마지막 전사까지 받기 위해 약간 더 대기 후 종료 판단은 idle 루프에 맡김
-                    pass
         finally:
             send_task.cancel()
             try:
