@@ -24,12 +24,12 @@ Gemini 3.5 Live Translate API(`gemini-3.5-live-translate-preview`)로 오디오 
 ├── requirements.txt
 ├── .env.example          # 키 이름만 명시 (복사해서 .env 작성)
 ├── .env                  # 실제 API 키 (gitignore, 커밋 금지)
-├── en2ko/                # 영어 음성 입력 → 한국어   (gitignore)
-├── ko2en/                # 한국어 음성 입력 → 영어   (gitignore)
+├── sqe-en/               # 영어 음성 입력 → 한국어   (gitignore)
+├── sqe-ko/               # 한국어 음성 입력 → 영어   (gitignore)
 └── outputs/              # 번역 전사 결과 .txt        (gitignore)
 ```
 
-`.env`, 오디오 파일(`*.wav`/`*.mp3`), `en2ko/`, `ko2en/`, `outputs/` 는
+`.env`, 오디오 파일(`*.wav`/`*.mp3`), `sqe-en/`, `sqe-ko/`, `outputs/` 는
 `.gitignore`로 **절대 커밋되지 않습니다**(API 키·오디오 데이터·결과물 보호).
 
 ---

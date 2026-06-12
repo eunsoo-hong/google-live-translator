@@ -11,6 +11,8 @@
 *.flac
 en2ko/
 ko2en/
+sqe-en/
+sqe-ko/
 
 # --- Results ---
 outputs/

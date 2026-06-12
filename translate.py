@@ -42,7 +42,7 @@ except Exception:
 
 AUDIO_EXTS = {".wav", ".mp3", ".m4a", ".flac"}
 # 폴더 → 목표 언어 코드 (BCP-47)
-DIR_TARGET = {"en2ko": "ko", "ko2en": "en"}
+DIR_TARGET = {"sqe-en": "ko", "sqe-ko": "en"}  # 영어→한국어, 한국어→영어
 MODEL = "gemini-3.5-live-translate-preview"
 INPUT_RATE = 16000          # Live Translate 입력: 16kHz mono PCM, little-endian
 CHUNK_MS = 100              # 권장 청크 길이 (100ms)
