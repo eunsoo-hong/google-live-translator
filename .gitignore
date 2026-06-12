@@ -30,3 +30,6 @@ venv/
 .idea/
 .vscode/
 .claude/
+
+# batch run log
+batch.log

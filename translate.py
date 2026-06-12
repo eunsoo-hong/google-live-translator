@@ -218,14 +218,18 @@ async def run(args):
         jobs = [(f, t) for (f, t) in jobs if f.parent.name == args.dir]
 
     if not jobs:
-        print("처리할 오디오 파일이 없습니다. en2ko/ 또는 ko2en/ 에 .wav/.mp3 를 넣으세요.")
+        print("처리할 오디오 파일이 없습니다. sqe-en/ 또는 sqe-ko/ 에 .wav/.mp3 를 넣으세요.")
         return
 
     print(f"총 {len(jobs)}개 파일 처리 (모델: {MODEL})\n")
     done, skipped, failed = [], [], []
 
     for idx, (src, target) in enumerate(jobs, 1):
-        out_path = OUTPUT_DIR / (src.stem + ".txt")
+        # 입력 폴더별 하위 디렉토리에 저장 → sqe-en/001.wav 와 sqe-ko/001.wav 처럼
+        # 이름이 겹쳐도 outputs/sqe-en/001.txt vs outputs/sqe-ko/001.txt 로 분리된다.
+        out_dir = OUTPUT_DIR / src.parent.name
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / (src.stem + ".txt")
         tag = f"[{idx}/{len(jobs)}] {src.parent.name}/{src.name} → {target}"
         if out_path.exists():
             print(f"{tag}  ⏭  이미 존재, 스킵 ({out_path})")
