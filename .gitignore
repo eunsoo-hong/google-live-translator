@@ -1,0 +1,30 @@
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Audio input data (never commit) ---
+*.wav
+*.mp3
+*.pcm
+*.m4a
+*.flac
+en2ko/
+ko2en/
+
+# --- Results ---
+outputs/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# --- OS / editor / tooling ---
+.DS_Store
+.idea/
+.vscode/
+.claude/

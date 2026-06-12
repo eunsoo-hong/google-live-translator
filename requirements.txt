@@ -1,0 +1,12 @@
+# Core SDK for the Gemini Live API
+google-genai>=1.0.0
+
+# Loads GEMINI_API_KEY (and proxy vars) from .env
+python-dotenv>=1.0.0
+
+# Raw WebSocket handshake check in check_connection.py (also a genai dependency)
+websockets>=13.0
+
+# Bundled static ffmpeg binary -> audio decode/resample without a system install.
+# Lets translate.py run on a locked-down corporate machine (pip-only, no sudo).
+imageio-ffmpeg>=0.5.1
