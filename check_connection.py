@@ -199,6 +199,16 @@ def step2_api_key():
             body = e.read().decode("utf-8", "replace")
         except Exception:
             pass
+        # Google API 에러는 JSON으로 온다. HTML이면 사내 프록시/웹필터의 차단 페이지다.
+        if "<html" in body.lower() or "<title" in body.lower():
+            _fail(
+                f"사내 프록시/웹필터가 요청을 차단함 (HTTP {e.code}, HTML 차단 페이지 수신)",
+                "요청이 Google에 도달하지 못했습니다 — API 키 문제가 아닙니다. "
+                "네트워크/보안팀에 generativelanguage.googleapis.com:443 허용을 요청하세요 "
+                "(REST + WebSocket/wss 업그레이드 포함). "
+                f"차단 페이지 내용: {_short(body, 120)}",
+            )
+            return False
         if e.code in (400, 401, 403):
             _fail(
                 f"API 키 거부됨 (HTTP {e.code})",
